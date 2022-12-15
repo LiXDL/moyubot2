@@ -144,7 +144,6 @@ dmypy.json
 **/plugins/star_relive/resource/**/*.json
 !**/.gitkeep
 
-.env.dev
-.env.prod
+.env*
 
 # End of https://www.toptal.com/developers/gitignore/api/python
