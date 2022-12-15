@@ -138,4 +138,13 @@ dmypy.json
 # pytype static type analyzer
 .pytype/
 
+.vscode
+
+**/plugins/star_relive/resource/**/*.png
+**/plugins/star_relive/resource/**/*.json
+!**/.gitkeep
+
+.env.dev
+.env.prod
+
 # End of https://www.toptal.com/developers/gitignore/api/python

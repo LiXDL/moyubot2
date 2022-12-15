@@ -22,8 +22,8 @@ driver = nonebot.get_driver()
 driver.register_adapter(ONEBOT_V11Adapter)
 driver.register_adapter(ONEBOT_V12Adapter)
 
-nonebot.load_builtin_plugins("echo")
-nonebot.load_builtin_plugins("single_session")
+# nonebot.load_builtin_plugins("echo")
+# nonebot.load_builtin_plugins("single_session")
 
 # Please DO NOT modify this file unless you know what you are doing!
 # As an alternative, you should use command `nb` or modify `pyproject.toml` to load plugins

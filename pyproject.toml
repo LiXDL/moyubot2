@@ -8,6 +8,7 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.7.3"
 nonebot2 = "^2.0.0-beta.1"
+aiohttp = "^3.8.3"
 
 [tool.poetry.dev-dependencies]
 nb-cli = "^0.6.0"
