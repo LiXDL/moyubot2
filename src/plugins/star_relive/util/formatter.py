@@ -6,7 +6,7 @@ from ..dto.Dress import (
     Dress,
     BaseInfo,
     Stat,
-    Skill,
+    Effect,
     ActiveSkill,
     PassiveSkill,
     EntrySkill,
@@ -89,16 +89,16 @@ class Formatter:
                     cost=skillNormal["cost"],
                     multiple=skillNormal["multiple"],
                     icon=skillNormal["icon"],
-                    params=[Skill(
+                    params=[Effect(
                         icon=skillParam["icon"],
-                        skill_type=skillParam["type"],
-                        hits=skillParam.get("hits", None),
-                        accuracy=skillParam.get("accuracy", None),
-                        duration=skillParam.get("duration", None),
+                        effect_type=skillParam["type"],
+                        hits=skillParam.get("hits", 0),
+                        accuracy=skillParam.get("accuracy", 0),
+                        duration=skillParam.get("duration", {}),
                         target=skillParam["target"],
                         description=skillParam["description"],
                         description_extra=skillParam["descriptionExtra"],
-                        name=skillParam.get("name", None)
+                        name=skillParam.get("name", {})
                     ) for skillParam in skillNoramlParams]
                 )
 
@@ -115,16 +115,16 @@ class Formatter:
                         cost=skillChange["cost"],
                         multiple=skillChange["multiple"],
                         icon=skillChange["icon"],
-                        params=[Skill(
+                        params=[Effect(
                             icon=skillParam["icon"],
-                            skill_type=skillParam["type"],
-                            hits=skillParam.get("hits", None),
-                            accuracy=skillParam.get("accuracy", None),
-                            duration=skillParam.get("duration", None),
+                            effect_type=skillParam["type"],
+                            hits=skillParam.get("hits", 0),
+                            accuracy=skillParam.get("accuracy", 0),
+                            duration=skillParam.get("duration", {}),
                             target=skillParam["target"],
                             description=skillParam["description"],
                             description_extra=skillParam["descriptionExtra"],
-                            name=skillParam.get("name", None)
+                            name=skillParam.get("name", {})
                         ) for skillParam in skillChangeParams]
                     )
 
@@ -139,16 +139,16 @@ class Formatter:
                     id=raw_passive["id"],
                     icon=raw_passive["icon"],
                     act_type=raw_passive["type"],
-                    params=[Skill(
+                    params=[Effect(
                         icon=skillParam["icon"],
-                        skill_type=skillParam["type"],
-                        hits=skillParam.get("hits", None),
-                        accuracy=skillParam.get("accuracy", None),
-                        duration=skillParam.get("duration", None),
+                        effect_type=skillParam["type"],
+                        hits=skillParam.get("hits", 0),
+                        accuracy=skillParam.get("accuracy", 0),
+                        duration=skillParam.get("duration", {}),
                         target=skillParam["target"],
                         description=skillParam["description"],
                         description_extra=skillParam["descriptionExtra"],
-                        name=skillParam.get("name", None)
+                        name=skillParam.get("name", {})
                     ) for skillParam in passiveParams]
                 )
                 passive_skill.append(current_passive)
@@ -159,16 +159,16 @@ class Formatter:
                 entry_skill = EntrySkill(
                     id=raw_entrySkill["id"],
                     icon=raw_entrySkill["icon"],
-                    params=[Skill(
+                    params=[Effect(
                         icon=skillParam["icon"],
-                        skill_type=skillParam["type"],
-                        hits=skillParam.get("hits", None),
-                        accuracy=skillParam.get("accuracy", None),
-                        duration=skillParam.get("duration", None),
+                        effect_type=skillParam["type"],
+                        hits=skillParam.get("hits", 0),
+                        accuracy=skillParam.get("accuracy", 0),
+                        duration=skillParam.get("duration", {}),
                         target=skillParam["target"],
                         description=skillParam["description"],
                         description_extra=skillParam["descriptionExtra"],
-                        name=skillParam.get("name", None)
+                        name=skillParam.get("name", {})
                     ) for skillParam in raw_entrySkill["params"]]
                 )
 
@@ -187,16 +187,16 @@ class Formatter:
                 cost=climaxSkillNormal["cost"],
                 multiple=climaxSkillNormal["multiple"],
                 icon=climaxSkillNormal["icon"],
-                params=[Skill(
+                params=[Effect(
                     icon=skillParam["icon"],
-                    skill_type=skillParam["type"],
-                    hits=skillParam.get("hits", None),
-                    accuracy=skillParam.get("accuracy", None),
-                    duration=skillParam.get("duration", None),
+                    effect_type=skillParam["type"],
+                    hits=skillParam.get("hits", 0),
+                    accuracy=skillParam.get("accuracy", 0),
+                    duration=skillParam.get("duration", {}),
                     target=skillParam["target"],
                     description=skillParam["description"],
                     description_extra=skillParam["descriptionExtra"],
-                    name=skillParam.get("name", None)
+                    name=skillParam.get("name", {})
                 ) for skillParam in climaxSkillNormal["params"]]
             )
 
@@ -211,16 +211,16 @@ class Formatter:
                     cost=climaxSkillChange["cost"],
                     multiple=climaxSkillChange["multiple"],
                     icon=climaxSkillChange["icon"],
-                    params=[Skill(
+                    params=[Effect(
                         icon=skillParam["icon"],
-                        skill_type=skillParam["type"],
-                        hits=skillParam.get("hits", None),
-                        accuracy=skillParam.get("accuracy", None),
-                        duration=skillParam.get("duration", None),
+                        effect_type=skillParam["type"],
+                        hits=skillParam.get("hits", 0),
+                        accuracy=skillParam.get("accuracy", 0),
+                        duration=skillParam.get("duration", {}),
                         target=skillParam["target"],
                         description=skillParam["description"],
                         description_extra=skillParam["descriptionExtra"],
-                        name=skillParam.get("name", None)
+                        name=skillParam.get("name", {})
                     ) for skillParam in climaxSkillChange["params"]]
                 )
 
@@ -243,34 +243,36 @@ class Formatter:
             )
 
     @staticmethod
-    async def dict2text(dress: dict, summary=True) -> str:
-        if summary:
-            basic_info = dress["basic_info"]
-            print(basic_info)
-            stats = dress["stats"]
+    async def dict2text(dress: dict) -> str:
+        basic_info = dress["basic_info"]
+        print(basic_info)
+        stats = dress["stats"]
 
-            name = f"角色: {basic_info['name'][LOCALE.JP]}"
-            if basic_info["name"].get(LOCALE.EN, None):
-                name = name + f"({basic_info['name'][LOCALE.EN]}, {basic_info['name'][LOCALE.CN]})"
-            rarity = f"稀有度: {basic_info['rarity']}"
-            release_date = f"卡池公布: {datetime.fromtimestamp(basic_info['release_date']).strftime('%Y-%m-%d %H:%M')}"
+        name = f"角色: {basic_info['name'][LOCALE.JP]}"
+        if basic_info["name"].get(LOCALE.EN, None):
+            name = name + f"({basic_info['name'][LOCALE.EN]}, {basic_info['name'][LOCALE.CN]})"
+        rarity = f"稀有度: {basic_info['rarity']}"
+        release_date = f"卡池公布: {datetime.fromtimestamp(basic_info['release_date']).strftime('%Y-%m-%d %H:%M')}"
 
-            element = f"属性: {ELEMENT[stats['element']]}"
-            attack_type = f"类型: {ATTACK_TYPE[stats['attack_type']]}"
-            role = f"站位: {ROLE[stats['role']]}"
-            cost = f"Cost: {stats['cost']}"
+        element = f"属性: {ELEMENT[stats['element']]}"
+        attack_type = f"类型: {ATTACK_TYPE[stats['attack_type']]}"
+        role = f"站位: {ROLE[stats['role']]}"
+        cost = f"Cost: {stats['cost']}"
 
-            normal_stat = stats["normal_stat"]
-            remake_stat = stats["remake_stat"]
+        normal_stat = stats["normal_stat"]
+        remake_stat = stats["remake_stat"]
 
-            number_stats = "数值(再生产):"
-            for k, v in ATTRIBUTES.items():
-                number_stats += f"\n{v}: {normal_stat[k]}"
-                if remake_stat:
-                    number_stats += f"({remake_stat[k]})"
+        number_stats = "数值(再生产):"
+        for k, v in ATTRIBUTES.items():
+            number_stats += f"\n{v}: {normal_stat[k]}"
+            if remake_stat:
+                number_stats += f"({remake_stat[k]})"
 
-            result = "\n".join([name, rarity, release_date, "", element, attack_type, role, cost, "", number_stats])
-        else:
-            result = "TODO"
-
+        result = "\n".join([name, rarity, release_date, "", element, attack_type, role, cost, "", number_stats])
         return result
+
+    @staticmethod
+    async def dto2text(dress: Dress) -> list[str]:
+
+
+        return []

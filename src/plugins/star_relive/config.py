@@ -4,10 +4,10 @@ from enum import Enum
 from collections import OrderedDict
 
 
-ELEMENT = ["", "花", "风", "雪", "月", "宙", "云", "梦", "日", "星"]
-ATTACK_TYPE = ["", "通常", "特殊"]
-ATTRIBUTES = OrderedDict([("total", "综合力"), ("atk", "ACT Power"), ("hp", "HP"), ("agi", "速度"), ("mdef", "特防"), ("pdef", "物防")])
-ROLE = {"front": "前排", "middle": "中排", "back": "后排"}
+ELEMENT: list[str] = ["", "花", "风", "雪", "月", "宙", "云", "梦", "日", "星"]
+ATTACK_TYPE: list[str] = ["", "通常", "特殊"]
+ATTRIBUTES: OrderedDict[str, str] = OrderedDict([("total", "综合力"), ("atk", "ACT Power"), ("hp", "HP"), ("agi", "速度"), ("mdef", "特防"), ("pdef", "物防")])
+ROLE: dict[str, str] = {"front": "前排", "middle": "中排", "back": "后排"}
 
 
 DownloadCofig: dict[str, list[int]] = {
