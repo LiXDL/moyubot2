@@ -1,6 +1,13 @@
 from pydantic import BaseModel, Extra
 from pathlib import Path
-from typing import Union
+from enum import Enum
+from collections import OrderedDict
+
+
+ELEMENT = ["", "花", "风", "雪", "月", "宙", "云", "梦", "日", "星"]
+ATTACK_TYPE = ["", "通常", "特殊"]
+ATTRIBUTES = OrderedDict([("total", "综合力"), ("atk", "ACT Power"), ("hp", "HP"), ("agi", "速度"), ("mdef", "特防"), ("pdef", "物防")])
+ROLE = {"front": "前排", "middle": "中排", "back": "后排"}
 
 
 DownloadCofig: dict[str, list[int]] = {
@@ -13,6 +20,13 @@ DownloadCofig: dict[str, list[int]] = {
         9030001
     ]
 }
+
+
+class LOCALE(str, Enum):
+    JP = "ja"
+    CN = "zh_hant"
+    EN = "en"
+    KR = "ko"
 
 
 class Config(BaseModel, extra=Extra.ignore):

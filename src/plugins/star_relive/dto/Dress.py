@@ -79,6 +79,6 @@ class Dress(BaseModel):
     active_skill: list[dict[str, Union[ActiveSkill, None]]]
     passive_skill: list[PassiveSkill]
     unit_skill: UnitSkill
-    entry_skill: EntrySkill
+    entry_skill: Union[EntrySkill, None]
     climax_skill: dict[str, Union[ActiveSkill, None]]
     finish_skill: FinishSkill

@@ -1,3 +1,7 @@
+import json
+from datetime import datetime
+from pathlib import Path
+
 from ..dto.Dress import (
     Dress,
     BaseInfo,
@@ -9,7 +13,7 @@ from ..dto.Dress import (
     UnitSkill,
     FinishSkill
 )
-import json
+from ..config import (ELEMENT, ATTACK_TYPE, ATTRIBUTES, ROLE, LOCALE)
 
 
 class Formatter:
@@ -33,7 +37,7 @@ class Formatter:
             return {"TODO": "TODO"}
 
     @staticmethod
-    async def json2dto(filename) -> Dress:
+    async def json2dto(filename: Path) -> Dress:
         with open(filename, "r") as f:
             raw = json.load(f)
 
@@ -149,21 +153,24 @@ class Formatter:
                 )
                 passive_skill.append(current_passive)
 
-            entry_skill = EntrySkill(
-                id=raw_entrySkill["id"],
-                icon=raw_entrySkill["icon"],
-                params=[Skill(
-                    icon=skillParam["icon"],
-                    skill_type=skillParam["type"],
-                    hits=skillParam.get("hits", None),
-                    accuracy=skillParam.get("accuracy", None),
-                    duration=skillParam.get("duration", None),
-                    target=skillParam["target"],
-                    description=skillParam["description"],
-                    description_extra=skillParam["descriptionExtra"],
-                    name=skillParam.get("name", None)
-                ) for skillParam in raw_entrySkill["params"]]
-            )
+            if raw_entrySkill is None:
+                entry_skill = None
+            else:
+                entry_skill = EntrySkill(
+                    id=raw_entrySkill["id"],
+                    icon=raw_entrySkill["icon"],
+                    params=[Skill(
+                        icon=skillParam["icon"],
+                        skill_type=skillParam["type"],
+                        hits=skillParam.get("hits", None),
+                        accuracy=skillParam.get("accuracy", None),
+                        duration=skillParam.get("duration", None),
+                        target=skillParam["target"],
+                        description=skillParam["description"],
+                        description_extra=skillParam["descriptionExtra"],
+                        name=skillParam.get("name", None)
+                    ) for skillParam in raw_entrySkill["params"]]
+                )
 
             unit_skill = UnitSkill(
                 id=raw_groupSkills["unitSkill"]["id"],
@@ -234,3 +241,36 @@ class Formatter:
                 climax_skill=climax_skill,
                 finish_skill=finish_skill
             )
+
+    @staticmethod
+    async def dict2text(dress: dict, summary=True) -> str:
+        if summary:
+            basic_info = dress["basic_info"]
+            print(basic_info)
+            stats = dress["stats"]
+
+            name = f"角色: {basic_info['name'][LOCALE.JP]}"
+            if basic_info["name"].get(LOCALE.EN, None):
+                name = name + f"({basic_info['name'][LOCALE.EN]}, {basic_info['name'][LOCALE.CN]})"
+            rarity = f"稀有度: {basic_info['rarity']}"
+            release_date = f"卡池公布: {datetime.fromtimestamp(basic_info['release_date']).strftime('%Y-%m-%d %H:%M')}"
+
+            element = f"属性: {ELEMENT[stats['element']]}"
+            attack_type = f"类型: {ATTACK_TYPE[stats['attack_type']]}"
+            role = f"站位: {ROLE[stats['role']]}"
+            cost = f"Cost: {stats['cost']}"
+
+            normal_stat = stats["normal_stat"]
+            remake_stat = stats["remake_stat"]
+
+            number_stats = "数值(再生产):"
+            for k, v in ATTRIBUTES.items():
+                number_stats += f"\n{v}: {normal_stat[k]}"
+                if remake_stat:
+                    number_stats += f"({remake_stat[k]})"
+
+            result = "\n".join([name, rarity, release_date, "", element, attack_type, role, cost, "", number_stats])
+        else:
+            result = "TODO"
+
+        return result
