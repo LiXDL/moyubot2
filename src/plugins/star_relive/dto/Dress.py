@@ -12,8 +12,8 @@ TURN_FIXED = re.compile(r"\d")
 
 EMPTY = ""
 
-ELEMENT: list[str] = ["", "花", "风", "雪", "月", "宙", "云", "梦", "日", "星"]
-ATTACK_TYPE: list[str] = ["", "通常", "特殊"]
+ELEMENT: list = ["", "花", "风", "雪", "月", "宙", "云", "梦", "日", "星"]
+ATTACK_TYPE: list = ["", "通常", "特殊"]
 ATTRIBUTES: OrderedDict[str, str] = OrderedDict([("total", "综合力"), ("atk", "ACT Power"), ("hp", "HP"), ("agi", "速度"), ("mdef", "特防"), ("pdef", "物防")])
 ROLE: dict[str, str] = {"front": "前排", "middle": "中排", "back": "后排"}
 EFFECT_TYPE: dict[str, str] = {"normal": "", "fieldEffect": "舞台效果"}
@@ -56,7 +56,7 @@ class BaseInfo(BaseModel):
 
         return "\n".join([name, rarity, release_date])
 
-    def full(self) -> list[str]:
+    def full(self) -> list:
         summary = self.summary()
 
         profile = "简介:\n{}".format(self.profile[LOCALE.JP])
@@ -97,7 +97,7 @@ class Stat(BaseModel):
 
         return "\n".join([element, attack_type, role, cost, "", number_stats])
 
-    def full(self) -> str:
+    def full(self):
         return self.summary()
 
 
@@ -225,9 +225,8 @@ class Dress(BaseModel):
 
         return "{}\n\n{}".format(basic_info, stat)
 
-    def full(self) -> list[str]:
+    def full(self) -> list:
         basic_info = self.basic_info.full()
-        stat = self.stat.full()
 
         active_skills = []
         for (i, s) in enumerate(self.active_skill):

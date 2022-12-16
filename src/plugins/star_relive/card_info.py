@@ -1,3 +1,4 @@
+import asyncio
 import re
 import argparse
 from datetime import timedelta
@@ -31,6 +32,14 @@ card_parser.add_argument("cid", nargs="?")
 card_parser.add_argument("-a", "--all", action="store_true")
 card_parser.add_argument("-h", "--help", action="store_true")
 card_parser.add_argument("-q", "--quit", action="store_true")
+
+HELP_MESSAGE = "\n".join([
+    "查卡器(beta 1.0):",
+    "/card|查卡 7位卡牌ID [-h] [-a] [-q]",
+    "-h, --help: 帮助信息",
+    "-a, --all: 显示完整卡牌信息",
+    "-q, --quit: 终止查询"
+])
 
 
 download = on_command("download", permission=SUPERUSER, priority=1)
@@ -67,36 +76,29 @@ async def download_handle_params(args: Message = EventMessage()):
 
 #   Search for card info
 @showcard.handle()
-async def showcard_handle_first_receive(matcher: Matcher, extra_args: T_State, cmd_args: Message = CommandArg()):
+async def showcard_handle_first_receive(matcher: Matcher, cmd_args: Message = CommandArg()):
     args, rem_args = card_parser.parse_known_args(cmd_args.extract_plain_text().strip().split())
 
     if rem_args:
         await showcard.send("可能存在多余参数：{}".format(str(rem_args)))
 
     if args.help:
-        help_message = "\n".join([
-            "查卡器(beta 1.0):",
-            "/card|查卡 7位卡牌ID [-h] [-a] [-q]",
-            "-h, --help: 帮助信息",
-            "-a, --all: 显示完整卡牌信息",
-            "-q, --quit: 终止查询"
-        ])
-        await showcard.finish(help_message)
+        await showcard.finish(HELP_MESSAGE)
 
-    extra_args["full"] = args.all
+    # extra_args["full"] = args.all
     if args.cid:
         matcher.set_arg("cmd_args", cmd_args)
 
 
 @showcard.got("cmd_args", prompt="请提供卡牌ID")
-async def showcard_handle_cid(bot: Bot, event: GroupMessageEvent, extra_args: T_State, cmd_args: str = ArgPlainText("cmd_args")):
+async def showcard_handle_cid(bot: Bot, event: GroupMessageEvent, cmd_args: str = ArgPlainText("cmd_args")):
     args, rem_args = card_parser.parse_known_args(cmd_args.strip().split())
 
     if rem_args:
         await showcard.send("可能存在多余参数：{}".format(str(rem_args)))
 
-    #   'all' flag gets true as long as user specified it once
-    all_flag = args.all or extra_args["full"]
+    # #   'all' flag gets true as long as user specified it once
+    # all_flag = args.all or extra_args["full"]
 
     if not args.cid and args.quit:
         await showcard.finish("查询终止", at_sender=True)
@@ -113,7 +115,7 @@ async def showcard_handle_cid(bot: Bot, event: GroupMessageEvent, extra_args: T_
         img_msg = MessageSegment.image(card_img)
 
         dress = await Formatter.json2dto(card_path)
-        if not all_flag:
+        if not args.all:
             info_text = dress.summary()
             info_msg = MessageSegment.text("\n\n" + info_text)
             await showcard.finish(img_msg + info_msg, at_sender=True)
