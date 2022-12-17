@@ -3,6 +3,7 @@ import zhconv
 from aiofiles import open
 from asyncio import gather, run
 from pathlib import Path
+import pandas as pd
 
 
 class Converter:
@@ -30,15 +31,23 @@ class Converter:
 
         return result
 
-    @staticmethod
-    async def persist(alias_dict: dict, target: Path):
-        async with open(target, "w") as afp:
-            await afp.write(json.dumps(alias_dict, indent=4, ensure_ascii=False))
+    # @staticmethod
+    # async def persist(alias_dict: dict, target: Path):
+    #     async with open(target, "w") as afp:
+    #         await afp.write(json.dumps(alias_dict, indent=4, ensure_ascii=False))
 
     @staticmethod
-    async def load(target : Path) -> dict:
-        async with open(target, "r") as afp:
-            return json.loads(await afp.read())
+    def persist(alias_df: pd.DataFrame, target: Path):
+        alias_df.to_csv(target, index=False)
+
+    # @staticmethod
+    # async def load(target : Path) -> dict:
+    #     async with open(target, "r") as afp:
+    #         return json.loads(await afp.read())
+
+    @staticmethod
+    def load(target: Path) -> pd.DataFrame:
+        return pd.read_csv(target, header=0)
 
 
 async def __main():
@@ -46,14 +55,16 @@ async def __main():
     resource = cwd.parent.parent / "resource" / "json"
     initial_aliases = await Converter.generate_simplified_names(resource)
 
-    result = {}
+    result = []
     for card in initial_aliases:
-        result[card[0]] = {
+        result.append({
+            "cid": card[0],
             "name": card[1],
-            "alias": [card[1]]
-        }
+            "alias": card[1]
+        })
 
-    await Converter.persist({"root": result}, cwd.parent.parent / "resource" / "alias.json")
+    alias_df = pd.DataFrame(result)
+    alias_df.to_csv(resource.parent / "alias.csv", index=False)
 
 
 if __name__ == "__main__":

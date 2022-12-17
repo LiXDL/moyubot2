@@ -34,6 +34,7 @@ class Config(BaseModel, extra=Extra.ignore):
     json_storage: Path = resource_path / "json"
     image_storage: Path = resource_path / "image"
     dress_image: Path = image_storage / "dress"
+    dress_json: Path = json_storage / "dress"
 
     card_alias = resource_path / "alias.json"
 

@@ -1,6 +1,7 @@
 import re
 import argparse
 from pathlib import Path
+import pandas as pd
 
 from nonebot import on_command, get_driver
 from nonebot.matcher import Matcher
@@ -9,7 +10,10 @@ from nonebot.permission import SUPERUSER
 from nonebot.utils import run_sync
 from nonebot.typing import T_State
 
-from nonebot.adapters.onebot.v11 import Bot, Message, MessageSegment, GroupMessageEvent
+from nonebot.adapters.onebot.v11 import (
+    Bot, Message, MessageSegment, GroupMessageEvent,
+    GROUP_OWNER, GROUP_ADMIN
+)
 
 from .dto.Dress import Dress
 from .util.converter import Converter
@@ -26,15 +30,31 @@ YES = re.compile(r"^y(es)?$", re.IGNORECASE)
 NO = re.compile(r"^n(o)?$", re.IGNORECASE)
 CID = re.compile(r"^\d{7}$")
 
-FOWARD_ALIAS: dict
-BACKWARD_ALIAS: dict
+ALIASES: pd.DataFrame
 
-HELP_MESSAGE = "\n".join([
+CARD_HELP_MESSAGE = "\n".join([
     "查卡器(beta 1.0):",
     "/card|查卡 7位卡牌ID [-h] [-a] [-q]",
     "-h, --help: 帮助信息",
     "-a, --all: 显示完整卡牌信息",
     "-q, --quit: 终止查询"
+])
+
+ALIAS_HELP_MESSAGE = "\n".join([
+    "卡牌常用名管理:",
+    "显示对应ID/常用名的卡牌的所有常用名"
+    "/alias|常用名 *[7位卡牌ID|常用名] [-h] [-a]",
+    "-h, --help: 帮助信息",
+    "-a, --add: 添加常用名(仅管理员可用)",
+    "-r, --remove: 移除常用名(仅管理员可用)"
+])
+
+ALIAS_ADD_HELP_MESSAGE = "\n".join([
+    "添加/移除常用名，参数: 7位卡牌ID 常用名",
+    "7位卡牌ID必须为第一参数，支持同时添加/移除多个常用名，使用空格分隔",
+    "示例: ",
+    "/alias -a|-r 1090006 狗香 拉普耶斯香子",
+    "本功能仅限管理员使用"
 ])
 
 
@@ -45,38 +65,28 @@ card_parser.add_argument("-a", "--all", action="store_true")
 card_parser.add_argument("-h", "--help", action="store_true")
 card_parser.add_argument("-q", "--quit", action="store_true")
 
+alias_parser = argparse.ArgumentParser(prog="Alias", add_help=False)
+alias_parser.add_argument("cinfo", nargs="*")
+alias_parser.add_argument("-a", "--add", action="store_true")
+alias_parser.add_argument("-r", "--remove", action="store_true")
+alias_parser.add_argument("-h", "--help", action="store_true")
+
 
 download = on_command("download", permission=SUPERUSER, priority=1)
 showcard = on_command("card", aliases={"card", "查卡"}, priority=10)
-alias = on_command("alias", aliases={"alias", "简称"}, priority=10)
+alias = on_command("alias", aliases={"alias", "别名"}, priority=10)
 
 
 @driver.on_startup
-async def init_alias():
-    global FOWARD_ALIAS, BACKWARD_ALIAS
-    FOWARD_ALIAS = await Converter.load(plugin_config.resource_path / "alias.json")
-
-    BACKWARD_ALIAS = {}
-    for cid, card in FOWARD_ALIAS["root"].items():
-        name, alias = card["name"], card["alias"]
-        for a in alias:
-            if not BACKWARD_ALIAS.get(a, None):
-                BACKWARD_ALIAS[a] = []
-            BACKWARD_ALIAS[a].append((cid, name))
+def init_alias():
+    global ALIASES
+    ALIASES = pd.read_csv(plugin_config.resource_path / "alias.csv", header=0)
 
 
 @driver.on_shutdown
-async def persis_alias():
-    global FOWARD_ALIAS, BACKWARD_ALIAS
-    reverse_map = {}
-    for (a, cards) in BACKWARD_ALIAS.items():
-        for card in cards:
-            cid, name = card[0], card[1]
-            if cid not in reverse_map:
-                reverse_map[cid] = {"name": name, "alias": []}
-            reverse_map[cid]["alias"].append(a)
-    FOWARD_ALIAS = {"root": reverse_map}
-    await Converter.persist(FOWARD_ALIAS, plugin_config.resource_path / "alias.json")
+def persis_alias():
+    global ALIASES
+    ALIASES.to_csv(plugin_config.resource_path / "alias.csv", index=False)
 
 
 #   Download data from API
@@ -109,14 +119,18 @@ async def download_handle_params(args: Message = EventMessage()):
 
 #   Search for card info
 @showcard.handle()
-async def showcard_handle_first_receive(matcher: Matcher, extra_args: T_State, cmd_args: Message = CommandArg()):
+async def showcard_handle_first_receive(
+    matcher: Matcher, 
+    extra_args: T_State, 
+    cmd_args: Message = CommandArg()
+):
     args, rem_args = card_parser.parse_known_args(cmd_args.extract_plain_text().strip().split())
 
     if rem_args:
         await showcard.send("可能存在多余参数：{}".format(str(rem_args)))
 
     if args.help:
-        await showcard.finish(HELP_MESSAGE)
+        await showcard.finish(CARD_HELP_MESSAGE)
 
     extra_args["full"] = args.all
     if args.cid:
@@ -124,7 +138,12 @@ async def showcard_handle_first_receive(matcher: Matcher, extra_args: T_State, c
 
 
 @showcard.got("cmd_args", prompt="请提供卡牌ID")
-async def showcard_handle_cid(bot: Bot, event: GroupMessageEvent, extra_args: T_State, cmd_args: str = ArgPlainText("cmd_args")):
+async def showcard_handle_cid(
+    bot: Bot, 
+    event: GroupMessageEvent, 
+    extra_args: T_State, 
+    cmd_args: str = ArgPlainText("cmd_args")
+):
     args, rem_args = card_parser.parse_known_args(cmd_args.strip().split())
 
     if rem_args:
@@ -141,7 +160,7 @@ async def showcard_handle_cid(bot: Bot, event: GroupMessageEvent, extra_args: T_
         await showcard.reject(f"无效卡牌ID：'{args.cid}'；请重新输入！")
 
     card_path: Path
-    if not (card_path := plugin_config.json_storage / f"{args.cid}.json").is_file():
+    if not (card_path := plugin_config.dress_json / f"{args.cid}.json").is_file():
         await showcard.finish(f"不存在卡牌：'{args.cid}'；查询终止")
     else:
         card_img = plugin_config.dress_image / f"{args.cid}.png"
@@ -182,4 +201,144 @@ def dress_full_wrapper(dress: Dress) -> list[str]:
 
 
 @alias.handle()
-async def alias_handle_first_receive(args)
+async def alias_handle_first_receive(
+    matcher: Matcher, 
+    cmd_args: Message = CommandArg()
+):
+    args = alias_parser.parse_args(cmd_args.extract_plain_text().strip().split())
+    
+    if not args.cinfo:
+        if args.help:
+            if args.add or args.remove:
+                await alias.finish(ALIAS_ADD_HELP_MESSAGE)
+            else:
+                await alias.finish(ALIAS_HELP_MESSAGE)
+
+        #   No information is given, need to prompt for further input
+    else:
+        #   Some infomation is given
+        matcher.set_arg("cmd_args", cmd_args)
+
+
+@alias.got("cmd_args", prompt="请输入常用名功能参数")
+async def alias_handle_info(
+    bot: Bot,
+    event: GroupMessageEvent,
+    cmd_args: str = ArgPlainText("cmd_args")
+):
+    global ALIASES
+
+    args = alias_parser.parse_args(cmd_args.strip().split())
+    if not args.cinfo:
+        await alias.reject("未输入有效卡牌ID或常用名，请重试！")
+
+    if not (args.add or args.remove):
+        #   Display aliases
+        if len(args.cinfo) > 5:
+            await alias.finish("搜索内容过多，请勿超出5个")
+
+        result = []
+        for c in args.cinfo:
+            if re.match(CID, c):
+                #   Card id to be searched:
+                search_result = ALIASES.loc[ALIASES["cid"]==int(c)]
+                if search_result.shape[0] == 0:
+                    result.append("未找到卡牌{}的常用名".format(c))
+                else:
+                    card_name = search_result.iloc[0, 1]
+                    alias_list = search_result["alias"].to_list()
+                    result.append("\n".join([
+                        "卡牌ID: {}".format(c),
+                        "卡牌名称: {}".format(card_name),
+                        "常用名: {}".format(str(alias_list))
+                    ]))
+            else:
+                #   Some other text to be searched:
+                simplified_c = Converter.simplify(c)
+                search_alias = ALIASES.loc[ALIASES["alias"]==simplified_c]
+                search_name = ALIASES.loc[ALIASES["name"]==str(c)]
+
+                if search_alias.shape[0] == 0 and search_name.shape[0] == 0:
+                    result.append("未找到'{}'的对应卡牌".format(c))
+                else:
+                    if search_alias.shape[0] == 0:
+                        search_alias_grouped = search_alias.groupby("cid")
+                        for group_id, group in search_alias_grouped:
+                            alias_list = group["alias"].to_list()
+                            result.append("\n".join([
+                                "卡牌ID: {}".format(group_id),
+                                "卡牌名称: {}".format(c),
+                                "常用名: {}".format(str(alias_list))
+                            ]))
+                    else:
+                        search_name_grouped = search_name.groupby("cid")
+                        for group_id, group in search_name_grouped:
+                            alias_list = group["alias"].to_list()
+                            result.append("\n".join([
+                                "卡牌ID: {}".format(group_id),
+                                "卡牌名称: {}".format(simplified_c),
+                                "常用名: {}".format(str(alias_list))
+                            ]))
+
+        result_text = "\n\n".join(["搜索结果:", *result])
+        await alias.finish(result_text)
+    else:
+        #   Adding or removing
+        if not (await GROUP_OWNER(bot, event) or await GROUP_ADMIN(bot, event)):
+            await alias.finish("仅群管理可使用添加/移除功能")
+
+        if args.add and args.remove:
+            #   Conflict arguments
+            await alias.finish("参数冲突！")
+
+        #   Check cinfo validity
+        cid = args.cinfo[0]
+        target_aliases = args.cinfo[1:]
+
+        if not re.match(CID, cid):
+            await alias.reject(f"无效卡牌ID：'{cid}'；请重新输入！")
+        cid = int(cid)
+
+        card_path: Path
+        if not (card_path := plugin_config.dress_json / f"{cid}.json").is_file():
+            await alias.finish(f"不存在卡牌：'{args.cid}'；操作终止")
+
+        if not target_aliases:
+            await alias.finish(f"未提供常用名；操作终止")
+
+        if args.add:
+            #   Adding new aliases
+            # print(ALIASES[ALIASES["cid"]==cid])
+            existed_aliases = ALIASES.loc[ALIASES["cid"]==cid]
+            cname = existed_aliases.iloc[0, 1]
+
+            new_entries = []
+            for a in target_aliases:
+                if a not in existed_aliases["alias"]:
+                    new_entries.append({
+                        "cid": cid, 
+                        "name": cname, 
+                        "alias": Converter.simplify(a)
+                    })
+
+            ALIASES = pd.concat([ALIASES, pd.DataFrame(new_entries)], axis=0, ignore_index=True)
+            new_aliases = ALIASES.loc[ALIASES["cid"]==cid]["alias"].to_list()
+
+            # print(ALIASES[ALIASES["cid"]==cid]["alias"].to_list())
+
+            await alias.finish("\n".join([
+                "已为卡牌{}添加常用名:\n{}".format(cid, str(target_aliases)),
+                "现有常用名:\n{}".format(str(new_aliases))
+            ]))
+        else:
+            #   Removing old aliases
+            target_removing = list(map(Converter.simplify, target_aliases))
+            ALIASES.drop(ALIASES.loc[ALIASES["alias"].isin(target_removing)].index, inplace=True)
+            ALIASES.reset_index(drop=True, inplace=True)
+
+            new_aliases = ALIASES.loc[ALIASES["cid"]==cid]["alias"].to_list()
+
+            await alias.finish("\n".join([
+                "已从卡牌{}移除常用名:\n{}".format(cid, str(target_aliases)),
+                "现有常用名:\n{}".format(str(new_aliases))
+            ]))

@@ -28,7 +28,7 @@ async def batch_download(force_rewrite=False) -> int:
 
 
 async def single_download(identifier: str, session: aiohttp.ClientSession, force_rewrite=False) -> int:
-    data_target = plugin_config.json_storage / f"{identifier}.json"
+    data_target = plugin_config.dress_json / f"{identifier}.json"
     image_target = plugin_config.dress_image / f"{identifier}.png"
 
     #   Already exists
