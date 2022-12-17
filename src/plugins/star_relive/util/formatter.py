@@ -1,5 +1,4 @@
 import json
-from datetime import datetime
 from pathlib import Path
 
 from ..dto.Dress import (
@@ -13,29 +12,9 @@ from ..dto.Dress import (
     UnitSkill,
     FinishSkill
 )
-from ..config import (ELEMENT, ATTACK_TYPE, ATTRIBUTES, ROLE, LOCALE)
 
 
 class Formatter:
-    @staticmethod
-    async def dto2dict(dress: Dress, summary=True) -> dict:
-        if summary:
-            return {
-                "basic_info": dress.basic_info.dict(include={
-                    "name": True,
-                    "rarity": True,
-                    "release_date": True
-                }),
-                "stats": dress.stat.dict(exclude={
-                    "role_index": True,
-                    "accessories": True,
-                    "remake": True,
-                    "fix_stat": True
-                })
-            }
-        else:
-            return {"TODO": "TODO"}
-
     @staticmethod
     async def json2dto(filename: Path) -> Dress:
         with open(filename, "r") as f:
@@ -241,38 +220,3 @@ class Formatter:
                 climax_skill=climax_skill,
                 finish_skill=finish_skill
             )
-
-    @staticmethod
-    async def dict2text(dress: dict) -> str:
-        basic_info = dress["basic_info"]
-        print(basic_info)
-        stats = dress["stats"]
-
-        name = f"角色: {basic_info['name'][LOCALE.JP]}"
-        if basic_info["name"].get(LOCALE.EN, None):
-            name = name + f"({basic_info['name'][LOCALE.EN]}, {basic_info['name'][LOCALE.CN]})"
-        rarity = f"稀有度: {basic_info['rarity']}"
-        release_date = f"卡池公布: {datetime.fromtimestamp(basic_info['release_date']).strftime('%Y-%m-%d %H:%M')}"
-
-        element = f"属性: {ELEMENT[stats['element']]}"
-        attack_type = f"类型: {ATTACK_TYPE[stats['attack_type']]}"
-        role = f"站位: {ROLE[stats['role']]}"
-        cost = f"Cost: {stats['cost']}"
-
-        normal_stat = stats["normal_stat"]
-        remake_stat = stats["remake_stat"]
-
-        number_stats = "数值(再生产):"
-        for k, v in ATTRIBUTES.items():
-            number_stats += f"\n{v}: {normal_stat[k]}"
-            if remake_stat:
-                number_stats += f"({remake_stat[k]})"
-
-        result = "\n".join([name, rarity, release_date, "", element, attack_type, role, cost, "", number_stats])
-        return result
-
-    @staticmethod
-    async def dto2text(dress: Dress) -> list[str]:
-
-
-        return []

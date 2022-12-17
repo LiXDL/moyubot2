@@ -35,6 +35,8 @@ class Config(BaseModel, extra=Extra.ignore):
     image_storage: Path = resource_path / "image"
     dress_image: Path = image_storage / "dress"
 
+    card_alias = resource_path / "alias.json"
+
     api_source: str = "https://karth.top/api"
     api_dress: str = api_source + "/dress"
     api_image: str = "https://cdn.karth.top/api/assets/dlc/res/dress/cg"

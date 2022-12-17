@@ -225,7 +225,7 @@ class Dress(BaseModel):
 
         return "{}\n\n{}".format(basic_info, stat)
 
-    def full(self) -> list:
+    def full(self) -> list[str]:
         basic_info = self.basic_info.full()
 
         active_skills = []
