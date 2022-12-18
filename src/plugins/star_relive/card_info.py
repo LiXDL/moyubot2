@@ -3,7 +3,7 @@ import argparse
 from pathlib import Path
 import pandas as pd
 
-from nonebot import on_command, get_driver
+from nonebot import on_command, get_driver, require
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg, ArgPlainText, EventMessage
 from nonebot.permission import SUPERUSER
@@ -23,6 +23,9 @@ from .config import Config
 
 from . import AliasManager as AM
 
+require("nonebot_plugin_apscheduler")
+from nonebot_plugin_apscheduler import scheduler
+
 driver = get_driver()
 plugin_config = Config.parse_obj(driver.config)
 
@@ -36,9 +39,10 @@ ALIASES: pd.DataFrame
 
 CARD_HELP_MESSAGE = "\n".join([
     "查卡器(beta 1.0):",
-    "/card|查卡 7位卡牌ID [-h] [-a] [-q]",
+    "默认输出数值信息，请添加参数以查看完整信息"
+    "/card|查卡 7位卡牌ID|常用名 [-h] [-a] [-q]",
     "-h, --help: 帮助信息",
-    "-a, --all: 完整卡牌信息",
+    "-a, --all: 完整卡牌信息（不支持多张查询，会增加被夹风险）",
     "-i, --image: 卡牌图片"
     "-q, --quit: 终止查询"
 ])
@@ -91,6 +95,11 @@ def persis_alias():
     AM.persist(plugin_config.card_alias)
 
 
+@scheduler.scheduled_job(trigger="interval", hours=1, id="store_alias")
+async def period_persis():
+    AM.persist(plugin_config.card_alias)
+
+
 #   Download data from API
 @download.handle()
 async def download_handle_first_receive(args: Message = CommandArg()):
@@ -123,7 +132,7 @@ async def download_handle_params(args: Message = EventMessage()):
 @showcard.handle()
 async def showcard_handle_first_receive(
     matcher: Matcher, 
-    extra_args: T_State, 
+    extra_args: T_State,
     cmd_args: Message = CommandArg()
 ):
     args, rem_args = card_parser.parse_known_args(cmd_args.extract_plain_text().strip().split())
@@ -134,16 +143,17 @@ async def showcard_handle_first_receive(
     if args.help:
         await showcard.finish(CARD_HELP_MESSAGE)
 
-    extra_args["full"] = args.all
+    extra_args["all_flag"] = args.all
+
     if args.cid:
         matcher.set_arg("cmd_args", cmd_args)
 
 
-@showcard.got("cmd_args", prompt="请提供卡牌ID")
+@showcard.got("cmd_args", prompt="请提供卡牌ID或常用名，以及其它参数")
 async def showcard_handle_cid(
     bot: Bot, 
+    extra_args: T_State,
     event: GroupMessageEvent, 
-    extra_args: T_State, 
     cmd_args: str = ArgPlainText("cmd_args")
 ):
     args, rem_args = card_parser.parse_known_args(cmd_args.strip().split())
@@ -151,58 +161,121 @@ async def showcard_handle_cid(
     if rem_args:
         await showcard.send("可能存在多余参数：{}".format(str(rem_args)))
 
-    # #   'all' flag gets true as long as user specified it once
-    all_flag = args.all or extra_args["full"]
-
     if not args.cid and args.quit:
         await showcard.finish("查询终止", at_sender=True)
 
-    if not re.match(CID, args.cid):
-        #   Invalid card id
-        await showcard.reject(f"无效卡牌ID：'{args.cid}'；请重新输入！")
+    # if not re.match(CID, args.cid):
+    #     #   Invalid card id
+    #     await showcard.reject(f"无效卡牌ID：'{args.cid}'；请重新输入！")
 
-    card_path: Path
-    if not (card_path := plugin_config.dress_json / f"{args.cid}.json").is_file():
-        await showcard.finish(f"不存在卡牌：'{args.cid}'；查询终止")
+    all_flag = args.all or extra_args["all_flag"]
+
+    if re.match(CID, args.cid):
+        cards_2b_searched = [await AM.retrive_id(int(args.cid))]
     else:
-        card_img = plugin_config.dress_image / f"{args.cid}.png"
-        img_msg = MessageSegment.image(card_img)
+        cards_2b_searched = await AM.retrive_info(Converter.simplify(args.cid))
 
-        if args.image:
-            await showcard.finish(img_msg)
+    if all_flag and len(cards_2b_searched) > 1:
+        # await showcard.reject("不支持同时查询多张卡牌完整信息，会增加被夹风险")
+        await showcard.reject("\n".join([
+            "不支持同时查询多张卡牌完整信息，会增加被夹风险",
+            "请从常用名对应的卡牌ID中选择一个查询:",
+            "; ".join([
+                "({},{})".format(cinfo.cid, cinfo.cname) for cinfo in cards_2b_searched
+            ])
+        ]))
+
+    if cards_2b_searched[0].status == 500:
+        await showcard.finish("数据库好像噶了，快把歌卫兵请过来！")
+
+    if cards_2b_searched[0].status == 404:
+        await showcard.finish(f"不存在卡牌：'{args.cid}'；查询终止")
+
+    if len(cards_2b_searched) == 1 and all_flag:
+        #   Single full search
+        target_cid = cards_2b_searched[0].cid
+        target_alias = cards_2b_searched[0].calias
+
+        card_path = plugin_config.dress_json / f"{target_cid}.json"
+        card_img = plugin_config.dress_image / f"{target_cid}.png"
 
         dress = await Formatter.json2dto(card_path)
-        if not all_flag:
-            info_text = await dress_summary_wrapper(dress)
-            info_msg = MessageSegment.text("\n\n" + info_text)
-            await showcard.finish(img_msg + info_msg, at_sender=True)
+
+        info_texts = await dress_full_wrapper(dress)
+        await bot.send_group_forward_msg(
+            group_id=event.group_id, 
+            messages=[
+                {
+                    "type": "node",
+                    "data": {
+                        "name": "胡蝶静羽",
+                        "uin": event.self_id,
+                        "content": "[CQ:image,file={}]".format(card_img.resolve().as_uri())
+                    }
+                },
+                {
+                    "type": "node",
+                    "data": {
+                        "name": "胡蝶静羽",
+                        "uin": event.self_id,
+                        "content": "\n".join([
+                            "卡牌ID: {}".format(target_cid),
+                            "常用名: {}".format(str(target_alias))
+                        ])
+                    }
+                },
+                *[{
+                    "type": "node",
+                    "data": {
+                        "name": "胡蝶静羽",
+                        "uin": event.self_id,
+                        # "content": [{
+                        #     "type": "text",
+                        #     "data": {"text": info_text}
+                        # }]
+                        "content": info_text
+                    }
+                } for info_text in info_texts]
+            ]
+        )
+        await showcard.finish()
+
+    #   Multiple simple search
+    info_blocks: list[tuple[Path, str]] = []
+    for cinfo in cards_2b_searched:
+        target_cid = cinfo.cid
+
+        card_path = plugin_config.dress_json / f"{target_cid}.json"
+        card_img = plugin_config.dress_image / f"{target_cid}.png"
+
+        if args.image:
+            info_blocks.append((card_img, ""))
         else:
-            info_texts = await dress_full_wrapper(dress)
-            await bot.send_group_forward_msg(
-                group_id=event.group_id, 
-                messages=[
-                    {
-                        "type": "node",
-                        "data": {
-                            "name": "胡蝶静羽",
-                            "uin": event.self_id,
-                            "content": "[CQ:image,file={}]".format(card_img.resolve().as_uri())
-                        }
-                    },
-                    *[{
-                        "type": "node",
-                        "data": {
-                            "name": "胡蝶静羽",
-                            "uin": event.self_id,
-                            "content": [{
-                                "type": "text",
-                                "data": {"text": info_text}
-                            }]
-                        }
-                    } for info_text in info_texts]
-                ]
-            )
-            await showcard.finish()
+            dress = await Formatter.json2dto(card_path)
+            card_text = await dress_summary_wrapper(dress)
+
+            info_blocks.append((card_img, "\n\n" + card_text))
+
+    if len(info_blocks) == 1:
+        await showcard.finish(Message(MessageSegment.image(info_blocks[0][0])).append(info_blocks[0][1]))
+    else:
+        await bot.send_group_forward_msg(
+            group_id=event.group_id, 
+            messages=[
+                *[{
+                    "type": "node",
+                    "data": {
+                        "name": "胡蝶静羽",
+                        "uin": event.self_id,
+                        "content": "[CQ:image,file={}]{}".format(
+                            info_block[0].resolve().as_uri(),
+                            info_block[1]
+                        )
+                    }
+                } for info_block in info_blocks]
+            ]
+        )
+        await showcard.finish()
 
 
 @run_sync
@@ -235,7 +308,7 @@ async def alias_handle_first_receive(
         matcher.set_arg("cmd_args", cmd_args)
 
 
-@alias.got("cmd_args", prompt="请输入常用名功能参数")
+@alias.got("cmd_args", prompt="请输入常用名功能所需参数")
 async def alias_handle_info(
     bot: Bot,
     event: GroupMessageEvent,

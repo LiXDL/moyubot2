@@ -141,6 +141,7 @@ dmypy.json
 .vscode
 
 **/plugins/star_relive/resource/**/*.png
+**/plugins/star_relive/resource/**/*.jpg
 **/plugins/star_relive/resource/**/*.json
 !**/.gitkeep
 

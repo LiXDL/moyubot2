@@ -60,14 +60,14 @@ def retrive_info(cinfo: str) -> list[AliasInfo]:
         return [AliasInfo(404)]
     else:
         if search_alias.empty:
-            search_name_grouped = search_name.groupby("id")
+            search_name_grouped = search_name.groupby("cid")
             result = []
             for gid, g in search_name_grouped:
                 calias = g["alias"].to_list()
                 result.append(AliasInfo(200, int(str(gid)), cinfo, calias))
             return result
         else:
-            search_alias_grouped = search_alias.groupby("id")
+            search_alias_grouped = search_alias.groupby("cid")
             result = []
             for gid, g in search_alias_grouped:
                 cname = g.iloc[0, 1]
