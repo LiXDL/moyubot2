@@ -39,7 +39,7 @@ class Config(BaseModel, extra=Extra.ignore):
 
     other_image: Path = image_storage / "other"
 
-    card_alias = resource_path / "alias.json"
+    card_alias = resource_path / "alias.csv"
 
     api_source: str = "https://karth.top/api"
     api_dress: str = api_source + "/dress"

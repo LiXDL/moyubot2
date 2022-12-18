@@ -21,6 +21,8 @@ from .util.formatter import Formatter
 from .util.downloader import batch_download
 from .config import Config
 
+from . import AliasManager as AM
+
 driver = get_driver()
 plugin_config = Config.parse_obj(driver.config)
 
@@ -79,14 +81,12 @@ alias = on_command("alias", aliases={"alias", "别名"}, priority=10)
 
 @driver.on_startup
 def init_alias():
-    global ALIASES
-    ALIASES = pd.read_csv(plugin_config.resource_path / "alias.csv", header=0)
+    AM.load(plugin_config.card_alias)
 
 
 @driver.on_shutdown
 def persis_alias():
-    global ALIASES
-    ALIASES.to_csv(plugin_config.resource_path / "alias.csv", index=False)
+    AM.persist(plugin_config.card_alias)
 
 
 #   Download data from API
@@ -226,8 +226,6 @@ async def alias_handle_info(
     event: GroupMessageEvent,
     cmd_args: str = ArgPlainText("cmd_args")
 ):
-    global ALIASES
-
     args = alias_parser.parse_args(cmd_args.strip().split())
     if not args.cinfo:
         await alias.reject("未输入有效卡牌ID或常用名，请重试！")
@@ -240,105 +238,82 @@ async def alias_handle_info(
         result = []
         for c in args.cinfo:
             if re.match(CID, c):
-                #   Card id to be searched:
-                search_result = ALIASES.loc[ALIASES["cid"]==int(c)]
-                if search_result.shape[0] == 0:
+                current_card = await AM.retrive_id(int(c))
+                if current_card.status == 500:
+                    await alias.finish("数据库好像噶了，快把歌卫兵请过来！")
+                
+                if current_card.status == 404:
                     result.append("未找到卡牌{}的常用名".format(c))
                 else:
-                    card_name = search_result.iloc[0, 1]
-                    alias_list = search_result["alias"].to_list()
+                    #   status code 200 OK
                     result.append("\n".join([
                         "卡牌ID: {}".format(c),
-                        "卡牌名称: {}".format(card_name),
-                        "常用名: {}".format(str(alias_list))
+                        "卡牌名称: {}".format(current_card.cname),
+                        "常用名: {}".format(str(current_card.calias))
                     ]))
             else:
-                #   Some other text to be searched:
                 simplified_c = Converter.simplify(c)
-                search_alias = ALIASES.loc[ALIASES["alias"]==simplified_c]
-                search_name = ALIASES.loc[ALIASES["name"]==str(c)]
+                current_cards = await AM.retrive_info(simplified_c)
 
-                if search_alias.shape[0] == 0 and search_name.shape[0] == 0:
-                    result.append("未找到'{}'的对应卡牌".format(c))
-                else:
-                    if search_alias.shape[0] == 0:
-                        search_alias_grouped = search_alias.groupby("cid")
-                        for group_id, group in search_alias_grouped:
-                            alias_list = group["alias"].to_list()
-                            result.append("\n".join([
-                                "卡牌ID: {}".format(group_id),
-                                "卡牌名称: {}".format(c),
-                                "常用名: {}".format(str(alias_list))
-                            ]))
+                for current_card in current_cards:
+                    if current_card.status == 500:
+                        await alias.finish("数据库好像噶了，快把歌卫兵请过来！")
+                    
+                    if current_card.status == 404:
+                        result.append("未找到'{}'的对应卡牌".format(c))
                     else:
-                        search_name_grouped = search_name.groupby("cid")
-                        for group_id, group in search_name_grouped:
-                            alias_list = group["alias"].to_list()
-                            result.append("\n".join([
-                                "卡牌ID: {}".format(group_id),
-                                "卡牌名称: {}".format(simplified_c),
-                                "常用名: {}".format(str(alias_list))
-                            ]))
+                        #   status code 200 OK
+                        result.append("\n".join([
+                            "卡牌ID: {}".format(c),
+                            "卡牌名称: {}".format(current_card.cname),
+                            "常用名: {}".format(str(current_card.calias))
+                        ]))
 
         result_text = "\n\n".join(["搜索结果:", *result])
         await alias.finish(result_text)
     else:
-        #   Adding or removing
         if not (await GROUP_OWNER(bot, event) or await GROUP_ADMIN(bot, event)):
-            await alias.finish("仅群管理可使用添加/移除功能")
+            await alias.finish("仅群管理可使用常用名添加/移除功能")
 
         if args.add and args.remove:
             #   Conflict arguments
-            await alias.finish("参数冲突！")
+            await alias.finish("参数冲突！\n请勿同时使用添加/移除命令")
 
-        #   Check cinfo validity
         cid = args.cinfo[0]
-        target_aliases = args.cinfo[1:]
+        target_aliases = list(map(Converter.simplify, args.cinfo[1:]))
 
         if not re.match(CID, cid):
             await alias.reject(f"无效卡牌ID：'{cid}'；请重新输入！")
         cid = int(cid)
 
-        card_path: Path
-        if not (card_path := plugin_config.dress_json / f"{cid}.json").is_file():
+        if not (plugin_config.dress_json / f"{cid}.json").is_file():
             await alias.finish(f"不存在卡牌：'{args.cid}'；操作终止")
 
         if not target_aliases:
             await alias.finish(f"未提供常用名；操作终止")
 
         if args.add:
-            #   Adding new aliases
-            # print(ALIASES[ALIASES["cid"]==cid])
-            existed_aliases = ALIASES.loc[ALIASES["cid"]==cid]
-            cname = existed_aliases.iloc[0, 1]
+            adding_result = await AM.add_alias(cid, target_aliases)
+            
+            if adding_result.status == 500:
+                await alias.finish("数据库好像噶了，快把歌卫兵请过来！")
+            if adding_result.status == 404:
+                await alias.finish(f"卡牌{cid}尚未创建常用名记录，歌卫兵全责")
 
-            new_entries = []
-            for a in target_aliases:
-                if a not in existed_aliases["alias"]:
-                    new_entries.append({
-                        "cid": cid, 
-                        "name": cname, 
-                        "alias": Converter.simplify(a)
-                    })
-
-            ALIASES = pd.concat([ALIASES, pd.DataFrame(new_entries)], axis=0, ignore_index=True)
-            new_aliases = ALIASES.loc[ALIASES["cid"]==cid]["alias"].to_list()
-
-            # print(ALIASES[ALIASES["cid"]==cid]["alias"].to_list())
-
+            #   Status code 200 OK
             await alias.finish("\n".join([
                 "已为卡牌{}添加常用名:\n{}".format(cid, str(target_aliases)),
-                "现有常用名:\n{}".format(str(new_aliases))
+                "现有常用名:\n{}".format(str(adding_result.calias))
             ]))
-        else:
-            #   Removing old aliases
-            target_removing = list(map(Converter.simplify, target_aliases))
-            ALIASES.drop(ALIASES.loc[ALIASES["alias"].isin(target_removing)].index, inplace=True)
-            ALIASES.reset_index(drop=True, inplace=True)
+        else:   #   args.remove
+            removing_result = await AM.remove_alias(cid, target_aliases)
 
-            new_aliases = ALIASES.loc[ALIASES["cid"]==cid]["alias"].to_list()
+            if removing_result.status == 500:
+                await alias.finish("数据库好像噶了，快把歌卫兵请过来！")
+            if removing_result.status == 404:
+                await alias.finish(f"卡牌{cid}尚未创建常用名记录，歌卫兵全责")
 
             await alias.finish("\n".join([
                 "已从卡牌{}移除常用名:\n{}".format(cid, str(target_aliases)),
-                "现有常用名:\n{}".format(str(new_aliases))
+                "现有常用名:\n{}".format(str(removing_result.calias))
             ]))
