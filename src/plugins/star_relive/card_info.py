@@ -38,7 +38,8 @@ CARD_HELP_MESSAGE = "\n".join([
     "查卡器(beta 1.0):",
     "/card|查卡 7位卡牌ID [-h] [-a] [-q]",
     "-h, --help: 帮助信息",
-    "-a, --all: 显示完整卡牌信息",
+    "-a, --all: 完整卡牌信息",
+    "-i, --image: 卡牌图片"
     "-q, --quit: 终止查询"
 ])
 
@@ -64,6 +65,7 @@ ALIAS_ADD_HELP_MESSAGE = "\n".join([
 card_parser = argparse.ArgumentParser(prog="Card", add_help=False)
 card_parser.add_argument("cid", nargs="?")
 card_parser.add_argument("-a", "--all", action="store_true")
+card_parser.add_argument("-i", "--image", action="store_true")
 card_parser.add_argument("-h", "--help", action="store_true")
 card_parser.add_argument("-q", "--quit", action="store_true")
 
@@ -76,7 +78,7 @@ alias_parser.add_argument("-h", "--help", action="store_true")
 
 download = on_command("download", permission=SUPERUSER, priority=1)
 showcard = on_command("card", aliases={"card", "查卡"}, priority=10)
-alias = on_command("alias", aliases={"alias", "别名"}, priority=10)
+alias = on_command("alias", aliases={"alias", "常用名"}, priority=10)
 
 
 @driver.on_startup
@@ -166,6 +168,9 @@ async def showcard_handle_cid(
         card_img = plugin_config.dress_image / f"{args.cid}.png"
         img_msg = MessageSegment.image(card_img)
 
+        if args.image:
+            await showcard.finish(img_msg)
+
         dress = await Formatter.json2dto(card_path)
         if not all_flag:
             info_text = await dress_summary_wrapper(dress)
@@ -175,19 +180,29 @@ async def showcard_handle_cid(
             info_texts = await dress_full_wrapper(dress)
             await bot.send_group_forward_msg(
                 group_id=event.group_id, 
-                messages=[{
-                    "type": "node",
-                    "data": {
-                        "name": "胡蝶静羽",
-                        "uin": event.self_id,
-                        "content": [{
-                            "type": "text",
-                            "data": {"text": info_text}
-                        }]
-                    }
-                } for info_text in info_texts]
+                messages=[
+                    {
+                        "type": "node",
+                        "data": {
+                            "name": "胡蝶静羽",
+                            "uin": event.self_id,
+                            "content": "[CQ:image,file={}]".format(card_img.resolve().as_uri())
+                        }
+                    },
+                    *[{
+                        "type": "node",
+                        "data": {
+                            "name": "胡蝶静羽",
+                            "uin": event.self_id,
+                            "content": [{
+                                "type": "text",
+                                "data": {"text": info_text}
+                            }]
+                        }
+                    } for info_text in info_texts]
+                ]
             )
-            await showcard.finish(img_msg, at_sender=True)
+            await showcard.finish()
 
 
 @run_sync
