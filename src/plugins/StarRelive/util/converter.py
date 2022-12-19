@@ -1,9 +1,13 @@
-import json
 import zhconv
 from aiofiles import open
 from asyncio import gather, run
 from pathlib import Path
 import pandas as pd
+
+try:
+    import ujson as json
+except:
+    import json
 
 
 class Converter:

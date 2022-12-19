@@ -140,9 +140,9 @@ dmypy.json
 
 .vscode
 
-**/plugins/star_relive/resource/**/*.png
-**/plugins/star_relive/resource/**/*.jpg
-**/plugins/star_relive/resource/**/*.json
+**/plugins/**/resource/**/*.png
+**/plugins/**/resource/**/*.jpg
+**/plugins/**/resource/**/*.json
 !**/.gitkeep
 
 .env*

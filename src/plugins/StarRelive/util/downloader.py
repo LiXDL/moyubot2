@@ -1,8 +1,12 @@
 import asyncio
 import aiofiles
 import aiohttp
-import json
 from itertools import product
+
+try:
+    import ujson as json
+except:
+    import json
 
 from nonebot import get_driver
 

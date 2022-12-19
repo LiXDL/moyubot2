@@ -1,5 +1,8 @@
-import json
 from pathlib import Path
+try:
+    import ujson as json
+except:
+    import json
 
 from ..dto.Dress import (
     Dress,
