@@ -1,16 +1,17 @@
-from nonebot import on_command, on_regex, on_fullmatch
+from nonebot import on_command, on_regex, on_fullmatch, require
 from nonebot.log import logger
 from nonebot.plugin import PluginMetadata
 from nonebot.params import Depends, RegexMatched
 from nonebot.permission import SUPERUSER
 from nonebot.matcher import Matcher
-from nonebot import require
+from nonebot.utils import run_sync
 from nonebot.adapters.onebot.v11 import GROUP, GROUP_ADMIN, GROUP_OWNER, GroupMessageEvent, MessageSegment
-from .data_source import fortune_manager
-from .config import FortuneThemesDict
 
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
+
+from .data_source import fortune_manager
+from .config import FortuneThemesDict
 
 __fortune_version__ = "v0.4.9"
 __fortune_usage__ = f'''
@@ -36,13 +37,16 @@ divine = on_fullmatch("小刘抽签", permission=GROUP, priority=20, block=True)
 refresh = on_fullmatch("刷新抽签", permission=SUPERUSER, priority=5, block=True)
 
 #   Temporarily not in use
+'''
 divine_specific = on_regex(r"^[^/]\S+抽签$", permission=GROUP, priority=25)
 limit_setting = on_regex(r"^指定(.*?)签$", permission=GROUP, priority=25)
 theme_setting = on_regex(r"^设置(.*?)签$", permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER, priority=25, block=True)
 reset = on_regex("^重置(抽签)?主题$", permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER, priority=25, block=True)
 theme_list = on_fullmatch("主题列表", permission=GROUP, priority=25, block=True)
 show = on_regex("^查看(抽签)?主题$", permission=GROUP, priority=25, block=True)
+'''
 
+'''
 @show.handle()
 async def _(event: GroupMessageEvent):
     gid: str = str(event.group_id)
@@ -53,6 +57,7 @@ async def _(event: GroupMessageEvent):
 async def _(event: GroupMessageEvent):
     msg: str = fortune_manager.get_main_theme_list()
     await theme_list.finish(msg)
+'''
 
 @divine.handle()
 async def _(event: GroupMessageEvent):
@@ -62,15 +67,15 @@ async def _(event: GroupMessageEvent):
     uid: str = str(event.user_id)
     nickname: str = event.sender.nickname if event.sender.nickname else str(event.user_id)
     
-    is_first, image_file = fortune_manager.divine(gid, uid, nickname, None, None)
+    is_first, image_file = await run_sync(fortune_manager.divine)(gid, uid, nickname, None, None)
     if not image_file:
         await divine.finish("今日运势生成出错……") 
     
     if not is_first:
-        msg = MessageSegment.text("她说你之前抽过了，就再给你看一次哦\n") + MessageSegment.image(image_file)
+        msg = MessageSegment.text("\n她说你之前抽过了，就再给你看一次哦\n") + MessageSegment.image(image_file)
     else:
         logger.info(f"User {event.user_id} | Group {event.group_id} 占卜了今日运势")
-        msg = MessageSegment.text("✨小刘帮你抽的✨\n") + MessageSegment.image(image_file)
+        msg = MessageSegment.text("\n✨小刘帮你抽的✨\n") + MessageSegment.image(image_file)
     
     await divine.finish(msg, at_sender=True)
 
@@ -82,7 +87,7 @@ async def get_user_theme(matcher: Matcher, args: str = RegexMatched()) -> str:
         
     return arg
 
-
+'''
 @divine_specific.handle()
 async def _(event: GroupMessageEvent, user_theme: str = Depends(get_user_theme)):
     for theme in FortuneThemesDict:
@@ -168,7 +173,7 @@ async def _(event: GroupMessageEvent):
         await reset.finish("重置群抽签主题失败！")
         
     await reset.finish("已重置当前群抽签主题为随机~")
-
+'''
 
 @refresh.handle()
 async def _():

@@ -143,6 +143,7 @@ dmypy.json
 **/plugins/**/resource/**/*.png
 **/plugins/**/resource/**/*.jpg
 **/plugins/**/resource/**/*.json
+**/plugins/**/resource/*.csv
 !**/.gitkeep
 
 .env*

@@ -17,11 +17,11 @@ from nonebot.adapters.onebot.v11 import (
 
 from .dto.Dress import Dress
 from .util.converter import Converter
-from .util.formatter import Formatter
 from .util.downloader import batch_download
 from .config import Config
 
 from . import AliasManager as AM
+from . import DressManager as DM
 
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
@@ -52,7 +52,7 @@ ALIAS_HELP_MESSAGE = "\n".join([
     "显示对应ID/常用名的卡牌的所有常用名"
     "/alias|常用名 *[7位卡牌ID|常用名] [-h] [-a]",
     "-h, --help: 帮助信息",
-    "-a, --add: 添加常用名(仅管理员可用)",
+    "-a, --add: 添加常用名",
     "-r, --remove: 移除常用名(仅管理员可用)"
 ])
 
@@ -66,6 +66,9 @@ ALIAS_ADD_HELP_MESSAGE = "\n".join([
 
 
 #   ArgParsers
+download_parser = argparse.ArgumentParser(prog="Download", add_help=False)
+download_parser.add_argument("-r", "--replace", action="store_true")
+
 card_parser = argparse.ArgumentParser(prog="Card", add_help=False)
 card_parser.add_argument("cid", nargs="?")
 card_parser.add_argument("-a", "--all", action="store_true")
@@ -92,6 +95,7 @@ def init_alias():
 
 @driver.on_shutdown
 def persis_alias():
+    DM.shutdown()
     AM.persist(plugin_config.card_alias)
 
 
@@ -102,18 +106,21 @@ async def period_persis():
 
 #   Download data from API
 @download.handle()
-async def download_handle_first_receive(args: Message = CommandArg()):
-    force_rewrite = args.extract_plain_text()
-    if not force_rewrite:
+async def download_handle(cmd_args: Message = CommandArg()):
+    args = download_parser.parse_args(cmd_args.extract_plain_text().strip().split())
+    if not args.replace:
         updated_entries = await batch_download()
-        await download.finish(f"Updated {updated_entries} records.")
+        await download.send(f"Updated {len(updated_entries)} records.")
+
+        new_cards = "\n".join("新增卡牌: ({}, {})".format(*t) for t in updated_entries)
+        AM.persist(plugin_config.card_alias)
+        await download.finish(new_cards)
     else:
-        if force_rewrite != "rewrite":
-            await download.finish(f"Invalid argument '{force_rewrite}'")
-        else:
-            await download.pause("Confirm force-rewriting current data?")
+        updated_entries = await batch_download(force_rewrite=True)
+        AM.persist(plugin_config.card_alias)
+        await download.finish(f"Updated {len(updated_entries)} records.")
 
-
+'''
 @download.handle()
 async def download_handle_params(args: Message = EventMessage()):
     confirmation = args.extract_plain_text()
@@ -126,7 +133,7 @@ async def download_handle_params(args: Message = EventMessage()):
             await download.send("Start downloading, force-rewrite enabled.")
             updated_entries = await batch_download(force_rewrite=True)
             await download.finish(f"Updated {updated_entries} records.")
-
+'''
 
 #   Search for card info
 @showcard.handle()
@@ -196,10 +203,9 @@ async def showcard_handle_cid(
         target_cid = cards_2b_searched[0].cid
         target_alias = cards_2b_searched[0].calias
 
-        card_path = plugin_config.dress_json / f"{target_cid}.json"
         card_img = plugin_config.dress_image / f"{target_cid}.png"
 
-        dress = await Formatter.json2dto(card_path)
+        dress = await DM.get_dress(target_cid)
 
         info_texts = await dress_full_wrapper(dress)
         await bot.send_group_forward_msg(
@@ -245,13 +251,12 @@ async def showcard_handle_cid(
     for cinfo in cards_2b_searched:
         target_cid = cinfo.cid
 
-        card_path = plugin_config.dress_json / f"{target_cid}.json"
         card_img = plugin_config.dress_image / f"{target_cid}.png"
 
         if args.image:
             info_blocks.append((card_img, ""))
         else:
-            dress = await Formatter.json2dto(card_path)
+            dress = await DM.get_dress(target_cid)
             card_text = await dress_summary_wrapper(dress)
 
             info_blocks.append((card_img, "\n\n" + card_text))
@@ -360,8 +365,11 @@ async def alias_handle_info(
         result_text = "\n\n".join(["搜索结果:", *result])
         await alias.finish(result_text)
     else:
-        if not (await GROUP_OWNER(bot, event) or await GROUP_ADMIN(bot, event)):
-            await alias.finish("仅群管理可使用常用名添加/移除功能")
+        if args.remove and not (
+            await GROUP_OWNER(bot, event) or 
+            await GROUP_ADMIN(bot, event)
+        ):
+            await alias.finish("仅群管理可使用常用名移除功能")
 
         if args.add and args.remove:
             #   Conflict arguments

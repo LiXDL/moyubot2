@@ -39,7 +39,7 @@ def turn_helper(s: str) -> str:
 
 
 class BaseInfo(BaseModel):
-    id: str
+    id: int
     name: dict[str, str]
     rarity: int
     profile: dict[str, str]
@@ -51,10 +51,11 @@ class BaseInfo(BaseModel):
         name = f"角色: {self.name[LOCALE.JP]}"
         if len(self.name) > 1:
             name += f"({self.name[LOCALE.EN]}, {self.name[LOCALE.JP]})"
+        id = "ID: {}".format(self.id)
         rarity = f"稀有度: {self.rarity}"
         release_date = f"卡池公布: {datetime.fromtimestamp(self.release_date).strftime('%Y-%m-%d %H:%M')}"
 
-        return "\n".join([name, rarity, release_date])
+        return "\n".join([name, id, rarity, release_date])
 
     def full(self) -> list:
         summary = self.summary()

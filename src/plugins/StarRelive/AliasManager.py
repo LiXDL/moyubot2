@@ -10,6 +10,7 @@ class AliasInfo:
     status is in one of the following:
         200: OK
         404: Not Found
+        400: Bad Request
         500: Internal Error
     '''
     status: int
@@ -74,6 +75,23 @@ def retrive_info(cinfo: str) -> list[AliasInfo]:
                 calias = g["alias"].to_list()
                 result.append(AliasInfo(200, int(str(gid)), str(cname), calias))
             return result
+
+@run_sync
+def add_card(cid: int, name: str, alias: str) -> AliasInfo:
+    global ALIAS
+    if ALIAS is None:
+        return AliasInfo(500)
+
+    existed_aliases = ALIAS.loc[ALIAS["cid"]==cid]
+    if not existed_aliases.empty:
+        return AliasInfo(400)
+
+    ALIAS = pd.concat([
+        ALIAS,
+        pd.DataFrame([{"cid": cid, "name": name, "alias": alias}])
+    ], axis=0, ignore_index=True)
+
+    return AliasInfo(200, cid, name, [alias])
 
 
 @run_sync
