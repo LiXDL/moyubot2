@@ -110,11 +110,14 @@ async def download_handle(cmd_args: Message = CommandArg()):
     args = download_parser.parse_args(cmd_args.extract_plain_text().strip().split())
     if not args.replace:
         updated_entries = await batch_download()
-        await download.send(f"Updated {len(updated_entries)} records.")
 
-        new_cards = "\n".join("新增卡牌: ({}, {})".format(*t) for t in updated_entries)
-        AM.persist(plugin_config.card_alias)
-        await download.finish(new_cards)
+        if not updated_entries:
+            await download.send(f"Updated {len(updated_entries)} records.")
+            new_cards = "\n".join("新增卡牌: ({}, {})".format(*t) for t in updated_entries)
+            AM.persist(plugin_config.card_alias)
+            await download.finish(new_cards)
+        else:
+            await download.finish("无新增卡牌")
     else:
         updated_entries = await batch_download(force_rewrite=True)
         AM.persist(plugin_config.card_alias)
