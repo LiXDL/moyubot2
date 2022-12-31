@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from pathlib import Path
+from datetime import timedelta
 
 import nonebot
 from nonebot.adapters.onebot.v11 import Adapter as ONEBOT_V11Adapter
 from nonebot.adapters.onebot.v12 import Adapter as ONEBOT_V12Adapter
 
 # Custom your logger
-# 
 # from nonebot.log import logger, default_format
-# logger.add("error.log",
-#            rotation="00:00",
-#            diagnose=False,
-#            level="ERROR",
+
+# log_path = Path(__file__).parent / "logs" / "info.log"
+# logger.add(log_path,
+#            rotation=timedelta(days=7),
+#            retention=timedelta(days=30),
+#            diagnose=True,
+#            backtrace=True,
+#            level="INFO",
 #            format=default_format)
 
 # You can pass some keyword args config to init function
