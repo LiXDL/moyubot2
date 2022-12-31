@@ -1,32 +1,29 @@
 from fastapi import FastAPI, WebSocket, Request
+from fastapi.responses import FileResponse
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 
 import asyncio
+import aiofiles
 import nonebot
 
 app: FastAPI = nonebot.get_app()
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
-log_path = Path.cwd() / "logs"
+log_path = Path.cwd().resolve() / "logs"
 log_file = "info.log"
 
+print(log_path)
 
-async def log_reader(n: int = 10) -> list[str]:
-    log_lines = []
 
-    with open(log_path / log_file) as f:
-        for line in f.readlines()[-n:]:
-            line = line.strip()
-            if line.__contains__("ERROR"):
-                log_lines.append(f'<span class="text-red-400">{line}</span><br/>')
-            elif line.__contains__("WARNING"):
-                log_lines.append(f'<span class="text-orange-300">{line}</span><br/>')
-            elif line.__contains__("SUCCESS"):
-                log_lines.append(f'<span class="text-lime-500">{line}</span><br/>')
-            else:
-                log_lines.append(f'<span class="text-neutral-50">{line}</span><br/>')
+async def log_reader(n: int = 5) -> list[str]:
+    async with aiofiles.open(log_path / log_file) as af:
+        lines = await af.readlines()
+        return lines[-n:]
 
-    return log_lines
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return FileResponse(str(Path(__file__).resolve().parent / "favicon.ico"))
 
 
 @app.get("/log")
@@ -47,6 +44,6 @@ async def websocket_endpoint_log(ws: WebSocket):
             logs = await log_reader(100)
             await ws.send_json(logs)
     except Exception as e:
-        pass
+        print(e)
     finally:
         await ws.close()

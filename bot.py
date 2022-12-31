@@ -8,16 +8,16 @@ from nonebot.adapters.onebot.v11 import Adapter as ONEBOT_V11Adapter
 from nonebot.adapters.onebot.v12 import Adapter as ONEBOT_V12Adapter
 
 # Custom your logger
-# from nonebot.log import logger, default_format
+from nonebot.log import logger, default_format
 
-# log_path = Path(__file__).parent / "logs" / "info.log"
-# logger.add(log_path,
-#            rotation=timedelta(days=7),
-#            retention=timedelta(days=30),
-#            diagnose=True,
-#            backtrace=True,
-#            level="INFO",
-#            format=default_format)
+log_path = Path(__file__).parent / "logs" / "info.log"
+logger.add(log_path,
+           rotation=timedelta(days=7),
+           retention=timedelta(days=30),
+           diagnose=True,
+           backtrace=True,
+           level="INFO",
+           format=default_format)
 
 # You can pass some keyword args config to init function
 nonebot.init()

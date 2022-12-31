@@ -21,15 +21,32 @@
     </div>
 
     <script>
-        // var ws_log = new WebSocket("ws://localhost:8000/ws/log");
+        let ws_log = new WebSocket("ws://192.168.1.32:1608/ws/log");
 
-        // ws_log.onmessage = function (event) {
-        //     let logs = document.getElementById("logs");
-        //     let log_data = event.data;
-        //     for (log_string of log_data) {
-        //         logs.appendChild(log_string);
-        //     }
-        // };
+        ws_log.onmessage = function (event) {
+            let logs = document.getElementById("logs");
+            let log_data = JSON.parse(event.data);
+            logs.innerHTML = "";
+
+            for (log_string of log_data) {
+                let display_string = document.createElement("span");
+
+                if (log_string.includes("ERROR")) {
+                    display_string.className = "text-red-400";
+                } else if (log_string.includes("WARNING")) {
+                    display_string.className = "text-orange-300";
+                } else if (log_string.includes("SUCCESS")) {
+                    display_string.className = "text-lime-500";
+                } else {
+                    display_string.className = "text-neutral-50";
+                }
+
+                display_string.innerText = log_string.trim();
+
+                logs.appendChild(display_string);
+                logs.appendChild(document.createElement("BR"));
+            }
+        };
     </script>
 </body>
 
