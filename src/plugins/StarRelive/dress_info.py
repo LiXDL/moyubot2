@@ -38,7 +38,7 @@ CID = re.compile(r"^\d{7}$")
 ALIASES: pd.DataFrame
 
 CARD_HELP_MESSAGE = "\n".join([
-    "查卡器(beta 1.0):",
+    "查卡器:",
     "默认输出数值信息，请添加参数以查看完整信息"
     "/card|查卡 7位卡牌ID|常用名 [-h] [-a] [-q]",
     "-h, --help: 帮助信息",
