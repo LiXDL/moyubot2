@@ -12,7 +12,7 @@ from nonebot.log import logger, default_format
 
 log_path = Path(__file__).parent / "logs" / "info.log"
 logger.add(log_path,
-           rotation=timedelta(days=7),
+           rotation=timedelta(days=1),
            retention=timedelta(days=30),
            diagnose=True,
            backtrace=True,

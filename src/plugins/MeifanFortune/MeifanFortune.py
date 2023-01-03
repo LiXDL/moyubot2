@@ -182,7 +182,7 @@ async def _():
 
 
 # 重置每日占卜
-@scheduler.scheduled_job("cron", hour=0, minute=0, misfire_grace_time=60)
+@scheduler.scheduled_job("cron", hour=0, minute=0, misfire_grace_time=None)
 async def _():
     fortune_manager.reset_fortune()
     logger.info("今日运势已刷新！")
