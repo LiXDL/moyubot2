@@ -1,0 +1,1 @@
+from .HoshimiQuote import daily_quote
