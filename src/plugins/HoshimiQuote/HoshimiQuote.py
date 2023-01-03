@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from nonebot import on_command, on_fullmatch, get_driver, get_bot, require
+from nonebot.log import logger
 from nonebot.permission import SUPERUSER
 from nonebot.adapters.onebot.v11 import MessageSegment
 
@@ -79,3 +80,4 @@ async def daily_check():
         group_id=691014271,
         message="👓星见同学说这是今天的名人名言哦\n[CQ:image,file={}]".format(today_img.resolve().as_uri())
     )
+    logger.info("Send daily quote and clean old ons on {}.".format(today_str))
