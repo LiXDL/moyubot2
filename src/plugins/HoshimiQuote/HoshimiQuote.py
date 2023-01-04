@@ -18,7 +18,7 @@ plugin_config = Config.parse_obj(driver.config)
 
 
 check_botapi = on_command("check", permission=SUPERUSER)
-daily_quote = on_fullmatch("星见语录", priority=10)
+daily_quote = on_fullmatch("星见语录", permission=SUPERUSER, priority=10)
 
 
 @check_botapi.handle()
@@ -37,7 +37,7 @@ async def daily_quote_handle():
     await daily_quote.send("等一下，我去帮你找她")
 
     cn_tz = ZoneInfo("Asia/Shanghai")
-    today = datetime.today().astimezone(tz=cn_tz)
+    today = datetime.now(tz=cn_tz)
     today_str = today.strftime('%Y%m%d')
 
     target_img = plugin_config.output_path / f"{today_str}.png"
@@ -56,7 +56,7 @@ async def daily_quote_handle():
 @scheduler.scheduled_job("cron", hour=9, misfire_grace_time=120)
 async def daily_check():
     cn_tz = ZoneInfo("Asia/Shanghai")
-    today = datetime.today().astimezone(tz=cn_tz)
+    today = datetime.now(tz=cn_tz)
     today_str = today.strftime('%Y%m%d')
 
     for i in range(7, 14):

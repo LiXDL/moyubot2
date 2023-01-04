@@ -12,8 +12,6 @@ templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "tem
 log_path = Path.cwd().resolve() / "logs"
 log_file = "info.log"
 
-print(log_path)
-
 
 async def log_reader(n: int = 5) -> list[str]:
     async with aiofiles.open(log_path / log_file) as af:
