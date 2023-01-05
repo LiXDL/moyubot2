@@ -61,8 +61,6 @@ async def _(event: GroupMessageEvent):
 
 @divine.handle()
 async def _(event: GroupMessageEvent):
-    await divine.send("等一下，我去帮你找她")
-
     gid: str = str(event.group_id)
     uid: str = str(event.user_id)
     nickname: str = event.sender.nickname if event.sender.nickname else str(event.user_id)

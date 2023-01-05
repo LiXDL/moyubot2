@@ -9,6 +9,7 @@ except:
     import json
 
 from nonebot import get_driver
+from nonebot.log import logger
 
 from ..config import Config, DownloadCofig
 from .. import AliasManager as AM
@@ -67,5 +68,7 @@ async def single_download(identifier: str, session: aiohttp.ClientSession, force
     cname = str(raw_data["basicInfo"]["name"].get("zh_hant", raw_data["basicInfo"]["name"]["ja"]))
 
     await AM.add_card(cid, Converter.simplify(cname), Converter.simplify(cname))
+
+    logger.info("Added card ({}, {})".format(cid, cname))
 
     return (cid, cname)

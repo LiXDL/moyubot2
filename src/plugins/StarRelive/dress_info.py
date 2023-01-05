@@ -70,7 +70,7 @@ download_parser = argparse.ArgumentParser(prog="Download", add_help=False)
 download_parser.add_argument("-r", "--replace", action="store_true")
 
 card_parser = argparse.ArgumentParser(prog="Card", add_help=False)
-card_parser.add_argument("cid", nargs="?")
+card_parser.add_argument("cid", nargs="+")
 card_parser.add_argument("-a", "--all", action="store_true")
 card_parser.add_argument("-i", "--image", action="store_true")
 card_parser.add_argument("-h", "--help", action="store_true")
@@ -83,7 +83,7 @@ alias_parser.add_argument("-r", "--remove", action="store_true")
 alias_parser.add_argument("-h", "--help", action="store_true")
 
 
-download = on_command("download", permission=SUPERUSER, priority=1)
+download = on_command("download", aliases={"更新卡牌"}, permission=SUPERUSER, priority=1)
 showcard = on_command("card", aliases={"card", "查卡"}, priority=10)
 alias = on_command("alias", aliases={"alias", "常用名"}, priority=10)
 
@@ -108,10 +108,11 @@ async def period_persis():
 @download.handle()
 async def download_handle(cmd_args: Message = CommandArg()):
     args = download_parser.parse_args(cmd_args.extract_plain_text().strip().split())
+    await download.send("正在更新数据库...")
     if not args.replace:
         updated_entries = await batch_download()
 
-        if not updated_entries:
+        if updated_entries:
             await download.send(f"Updated {len(updated_entries)} records.")
             new_cards = "\n".join("新增卡牌: ({}, {})".format(*t) for t in updated_entries)
             AM.persist(plugin_config.card_alias)
@@ -147,6 +148,8 @@ async def showcard_handle_first_receive(
 ):
     args, rem_args = card_parser.parse_known_args(cmd_args.extract_plain_text().strip().split())
 
+    #   This one is no longer used
+    #   Search for names/alias now allow space character contained.
     if rem_args:
         await showcard.send("可能存在多余参数：{}".format(str(rem_args)))
 
@@ -168,6 +171,8 @@ async def showcard_handle_cid(
 ):
     args, rem_args = card_parser.parse_known_args(cmd_args.strip().split())
 
+    #   This one is no longer used
+    #   Search for names/alias now allow space character contained.
     if rem_args:
         await showcard.send("可能存在多余参数：{}".format(str(rem_args)))
 
@@ -180,10 +185,12 @@ async def showcard_handle_cid(
 
     all_flag = args.all or extra_args["all_flag"]
 
-    if re.match(CID, args.cid):
-        cards_2b_searched = [await AM.retrive_id(int(args.cid))]
+    search_key = " ".join(args.cid)
+
+    if re.match(CID, search_key):
+        cards_2b_searched = [await AM.retrive_id(int(search_key))]
     else:
-        cards_2b_searched = await AM.retrive_info(Converter.simplify(args.cid))
+        cards_2b_searched = await AM.retrive_info(Converter.simplify(search_key))
 
     if all_flag and len(cards_2b_searched) > 1:
         # await showcard.reject("不支持同时查询多张卡牌完整信息，会增加被夹风险")
