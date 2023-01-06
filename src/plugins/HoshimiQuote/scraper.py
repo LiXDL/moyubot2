@@ -1,8 +1,9 @@
 import aiohttp
 import asyncio
 import lxml
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from datetime import datetime
+from typing import cast
 
 
 async def get_daily() -> dict[str, str] | None:
@@ -13,7 +14,7 @@ async def get_daily() -> dict[str, str] | None:
             text = (await response.read()).decode("utf-8")
 
     page = BeautifulSoup(text, "lxml")
-    quote_section = page.find("div", attrs={"class": "mw-parser-output"})
+    quote_section = cast(Tag, page.find("div", attrs={"class": "mw-parser-output"}))
     try:
         texts = quote_section.find_all(text=True)
         quotes = list(filter(lambda c: c != "\n", texts))
