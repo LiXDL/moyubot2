@@ -26,7 +26,7 @@ def drawing(text: dict, outname: str):
     #   Draw quote
     #   Center is moved upward by 1/4 of the textbox height
     draw.text(
-        xy=(270, 220 - int((ry2 - ry1) / 4)),
+        xy=(270, 220 - int((ry2 - ry1) / 8)),
         text=multiline_quote,
         fill="#323232",
         anchor="mm",
@@ -38,7 +38,7 @@ def drawing(text: dict, outname: str):
     )
     #   Draw person
     draw.text(
-        xy=(420, ry2 + 48),
+        xy=(420, ry2 + 32),
         text=by + "  ———",
         fill="#323232",
         anchor="rm",

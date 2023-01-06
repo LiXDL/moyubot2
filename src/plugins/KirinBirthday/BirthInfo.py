@@ -6,6 +6,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from nonebot import on_command, require, get_bot
+from nonebot.log import logger
 from nonebot.params import CommandArg
 from nonebot.adapters.onebot.v11 import Message
 
@@ -55,25 +56,88 @@ async def month_bd_handler(cmd_args: Message = CommandArg()):
         #   There should be someone's birthday each month.
         await month_birthday.finish("本月无角色或中之人生日")
     else:
+        result_message = ""
         if chara_bd:
             chara_bd_text = "\n".join(map(
                 lambda d: "{} ({}月{}日)".format(d["name"], d["birthday"]["month"], d["birthday"]["date"]),
                 chara_bd
             ))
-            await month_birthday.send("本月生日角色:\n{}".format(chara_bd_text))
+            result_message += "本月生日角色:\n{}".format(chara_bd_text)
         if actor_bd:
             actor_bd_text = "\n".join(map(
                 lambda d: "{} ({}月{}日)".format(d["name"], d["birthday"]["month"], d["birthday"]["date"]),
                 actor_bd
             ))
-            await month_birthday.send("本月生日中之人:\n{}".format(actor_bd_text))
+            if chara_bd:
+                result_message += "\n"
+            result_message += "本月生日中之人:\n{}".format(actor_bd_text)
 
-        await month_birthday.finish()
+        await month_birthday.finish(result_message)
 
 
-@scheduler.scheduled_job("cron", hour=0, misfire_grace_time=120)
+@scheduler.scheduled_job("cron", hour=0, misfire_grace_time=3600)
 async def daily_bd_notifier():
-    pass
+    actor_bd, chara_bd = await get_today_bd()
+    if not actor_bd and not chara_bd:
+        logger.info("Nobody's birthday today.")
+        return
+    
+    today = datetime.now(tz=ZoneInfo("Asia/Shanghai"))
+    today_month, today_date = today.month, today.day
+
+    result_message = ""
+
+    if chara_bd:
+        result_message += "过生日的角色是：{}".format(chara_bd[0])
+    if actor_bd:
+        if chara_bd:
+            result_message += "\n"
+        result_message += "过生日的中之人是：{}".format(actor_bd[0])
+
+    result_message = "今天是{}月{}日，\n".format(today_month, today_date)
+    bot = get_bot()
+    await bot.send_group_message(
+        group_id=691014271,
+        message=result_message
+    )
+    logger.info("There is someone's birthday today. Notification Message sent.")
+
+
+@scheduler.scheduled_job("cron", day=1, misfire_grace_time=3600)
+async def monthly_bd_notifier():
+    actor_bd, chara_bd = await get_month_bd()
+
+    if not actor_bd and not chara_bd:
+        #   This is unlikely to happen, but just left here to avoid possible errors.
+        logger.info("Nobody's birthday this month.")
+
+    today = datetime.now(tz=ZoneInfo("Asia/Shanghai"))
+    today_month = today.month
+
+    result_message = ""
+    if chara_bd:
+        chara_bd_text = "\n".join(map(
+            lambda d: "{} ({}月{}日)".format(d["name"], d["birthday"]["month"], d["birthdat"]["date"]),
+            chara_bd
+        ))
+        result_message += "本月生日角色:\n{}".format(chara_bd_text)
+    if actor_bd:
+        actor_bd_text = "\n".join(map(
+            lambda d: "{} ({}月{}日)".format(d["name"], d["birthday"]["month"], d["birthday"]["date"]),
+            actor_bd
+        ))
+        if chara_bd:
+            result_message += "\n"
+        result_message += "本月生日中之人:\n{}".format(actor_bd_text)
+
+    result_message = "到{}月了哦！\n".format(today_month) + result_message
+
+    bot = get_bot()
+    await bot.send_group_message(
+        group_id=691014271,
+        message=result_message
+    )
+    logger.info("There are people's birthday this month. Notification Message sent.")
 
 
 async def get_today_bd() -> tuple[list, list]:
