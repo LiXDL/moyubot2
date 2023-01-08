@@ -96,7 +96,7 @@ async def daily_bd_notifier():
 
     result_message = "今天是{}月{}日，\n".format(today_month, today_date)
     bot = get_bot()
-    await bot.send_group_message(
+    await bot.send_group_msg(
         group_id=691014271,
         message=result_message
     )
@@ -133,7 +133,7 @@ async def monthly_bd_notifier():
     result_message = "到{}月了哦！\n".format(today_month) + result_message
 
     bot = get_bot()
-    await bot.send_group_message(
+    await bot.send_group_msg(
         group_id=691014271,
         message=result_message
     )
