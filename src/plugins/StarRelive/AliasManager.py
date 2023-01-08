@@ -31,6 +31,11 @@ def persist(filename: Path):
     ALIAS.to_csv(filename, index=False)
 
 
+def empty():
+    global ALIAS
+    ALIAS = ALIAS[0:0]
+
+
 @run_sync
 def retrive_id(cid: int) -> AliasInfo:
     if ALIAS is None:

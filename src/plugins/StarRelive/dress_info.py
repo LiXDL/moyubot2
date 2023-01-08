@@ -120,24 +120,15 @@ async def download_handle(cmd_args: Message = CommandArg()):
         else:
             await download.finish("无新增卡牌")
     else:
+        #   Clear database, alias table, and all json files for replacing everything.
+        await DM.empty()
+        AM.empty()
+
         updated_entries = await batch_download(force_rewrite=True)
         AM.persist(plugin_config.card_alias)
+        
         await download.finish(f"Updated {len(updated_entries)} records.")
 
-'''
-@download.handle()
-async def download_handle_params(args: Message = EventMessage()):
-    confirmation = args.extract_plain_text()
-    if not CONFIRM.match(confirmation):
-        await download.reject(f"Invalid confirmation '{confirmation}'")
-    else:
-        if NO.match(confirmation):
-            await download.finish("Downloading aborted.")
-        else:
-            await download.send("Start downloading, force-rewrite enabled.")
-            updated_entries = await batch_download(force_rewrite=True)
-            await download.finish(f"Updated {updated_entries} records.")
-'''
 
 #   Search for card info
 @showcard.handle()
@@ -179,10 +170,6 @@ async def showcard_handle_cid(
     if not args.cid and args.quit:
         await showcard.finish("查询终止", at_sender=True)
 
-    # if not re.match(CID, args.cid):
-    #     #   Invalid card id
-    #     await showcard.reject(f"无效卡牌ID：'{args.cid}'；请重新输入！")
-
     all_flag = args.all or extra_args["all_flag"]
 
     search_key = " ".join(args.cid)
@@ -217,7 +204,7 @@ async def showcard_handle_cid(
 
         dress = await DM.get_dress(target_cid)
 
-        info_texts = await dress_full_wrapper(dress)
+        info_texts = await run_sync(dress.full)()
         await bot.send_group_forward_msg(
             group_id=event.group_id, 
             messages=[
@@ -267,7 +254,7 @@ async def showcard_handle_cid(
             info_blocks.append((card_img, ""))
         else:
             dress = await DM.get_dress(target_cid)
-            card_text = await dress_summary_wrapper(dress)
+            card_text = await run_sync(dress.summary)()
 
             info_blocks.append((card_img, "\n\n" + card_text))
 
@@ -291,16 +278,6 @@ async def showcard_handle_cid(
             ]
         )
         await showcard.finish()
-
-
-@run_sync
-def dress_summary_wrapper(dress: Dress) -> str:
-    return dress.summary()
-
-
-@run_sync
-def dress_full_wrapper(dress: Dress) -> list[str]:
-    return dress.full()
 
 
 @alias.handle()

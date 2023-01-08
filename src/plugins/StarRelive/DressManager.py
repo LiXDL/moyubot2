@@ -20,6 +20,11 @@ def shutdown():
     async_client.close
 
 
+#   Empty out the dress collection, only used to force rewrite.
+async def empty():
+    await DRESSES.delete_many({})
+
+
 async def insert_dress(document: dict):
     document["basicInfo"]["cardID"] = int(document["basicInfo"]["cardID"])
     try:
