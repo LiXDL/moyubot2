@@ -1,6 +1,4 @@
-from nonebot import get_driver
+from . import AliasManager as AM
+from . import DressManager as DM
 
-from .config import Config
-
-driver = get_driver()
 

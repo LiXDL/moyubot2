@@ -81,7 +81,7 @@ class Stat(BaseModel):
     accessories: list[int] | None
     remake: bool
     normal_stat: dict[str, int]
-    remake_stat: dict[str, int]
+    remake_stat: dict[str, int] | None
     fix_stat: dict[str, int]
 
     def summary(self) -> str:

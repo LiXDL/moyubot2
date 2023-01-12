@@ -34,7 +34,12 @@ def dict2dto(raw: dict) -> Dress:
     raw_base = raw["base"]
     raw_other = raw["other"]
     raw_stat = raw["stat"]
+
     raw_statRemake = raw["statRemake"]
+    if not raw_statRemake:
+        #   This entry could either be a dictionary or a False value
+        raw_statRemake = None
+
     raw_acts = raw["act"]
     raw_skills = raw["skills"]
     raw_entrySkill = raw["entrySkill"]
