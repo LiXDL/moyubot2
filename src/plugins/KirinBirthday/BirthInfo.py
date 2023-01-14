@@ -94,7 +94,7 @@ async def daily_bd_notifier():
             result_message += "\n"
         result_message += "过生日的中之人是：{}".format(actor_bd[0])
 
-    result_message = "今天是{}月{}日，\n".format(today_month, today_date)
+    result_message = "今天是{}月{}日，\n".format(today_month, today_date) + result_message
     bot = get_bot()
     await bot.send_group_msg(
         group_id=691014271,
