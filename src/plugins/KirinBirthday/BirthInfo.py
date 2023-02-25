@@ -117,7 +117,7 @@ async def monthly_bd_notifier():
     result_message = ""
     if chara_bd:
         chara_bd_text = "\n".join(map(
-            lambda d: "{} ({}月{}日)".format(d["name"], d["birthday"]["month"], d["birthdat"]["date"]),
+            lambda d: "{} ({}月{}日)".format(d["name"], d["birthday"]["month"], d["birthday"]["date"]),
             chara_bd
         ))
         result_message += "本月生日角色:\n{}".format(chara_bd_text)
